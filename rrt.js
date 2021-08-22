@@ -8,10 +8,9 @@
 function sleep(milliseconds) {  
     return new Promise(resolve => setTimeout(resolve, milliseconds));  
 }  
-// file:///Users/jef/paths/page.html
 
-// Where curvature is 1/R of the turn and dist is the arc length traveled.
-function stepCurv3(p, curvature, dist) {
+// Where curvature is 1/R (R is radius of turn) and dist is the arc length traveled.
+function stepCurv(p, curvature, dist) {
     var dx_local = dist;
     var dy_local = 0.0;
     var theta = 0.0;
@@ -60,14 +59,14 @@ class Branch {
         this.curvature = curvature;
         this.distance = distance;
 
-        let new_position = stepCurv3(this.parent.position, this.curvature, this.distance)
+        let new_position = stepCurv(this.parent.position, this.curvature, this.distance)
 
         this.child = new Node(this.parent, this, new_position)
     }
 
     singleDraw() {
         ctx.strokeStyle = 'green';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 5;
 
         ctx.beginPath();
 
@@ -77,7 +76,7 @@ class Branch {
         var ds = 1.0
         while (i < this.distance) {
             i += ds
-            p = stepCurv3(p, this.curvature, ds);
+            p = stepCurv(p, this.curvature, ds);
             ctx.lineTo(p.x, p.y);
         }
         ctx.lineTo(this.child.position.x, this.child.position.y)
@@ -95,7 +94,7 @@ class Branch {
         var ds = 1.0
         while (i < this.distance) {
             i += ds
-            p = stepCurv3(p, this.curvature, ds);
+            p = stepCurv(p, this.curvature, ds);
             ctx.lineTo(p.x, p.y);
         }
         ctx.lineTo(this.child.position.x, this.child.position.y)
@@ -106,16 +105,13 @@ class Branch {
 
 class Node {
     constructor(parent, branch, position) {
-        this.parent = parent
-        this.branch = branch
-        this.position = position
-        this.children = []
+        this.parent = parent;
+        this.branch = branch;
+        this.position = position;
+        this.children = [];
 
-        this.curvature = (Math.random() * 0.2) - (0.1)
-        // this.curvature = -0.1
-
-        this.distance = Math.random() * 10 + 5;
-        // this.distance = 40
+        this.curvature = (Math.random() * 2 * curvature_sample) - (curvature_sample);
+        this.distance = Math.random() * distance_sample + distance_sample_offset;
     }
 
     sample() {
@@ -241,18 +237,33 @@ class Tree {
     }
 }
 
+// Curvature sample = [+/-]rand[0-1] * curvature_sample
+var curvature_sample = 0.1;
+
+// Sample distance = rand[0-1] * distance_sample + distance_sample_offset
+var distance_sample = 10;
+var distance_sample_offset = 5;
+
+// Will continue expanding node if within this distance from target of closest node
 var explore_distance = 15;
+
+// Stops searching when within this distance of target
 var finish_distance = 30;
+
+// Draws this frequently [ms]
 var draw_sleep_time = 10;
+
+// Draws this many nodes up from node that's closest to target
 var draw_depth = 100;
+
+// Break time between search cycles
 var search_sleep_time = 1;
+
+// Search start position
 let start_position = new Position(50, 200, 0)
 
 let tree = new Tree(start_position);
-
-// Position root;
-var canvas, ctx, flag = false,
-    dot_flag = false;
+var canvas, ctx;
 
 function init() {
     canvas = document.getElementById('can');
