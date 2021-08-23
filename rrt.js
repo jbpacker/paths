@@ -376,15 +376,15 @@ var finish_distance = 40;
 var draw_depth = 30;
 
 // Break time between cycles [ms]
-var search_sleep_time = 40;
+var search_sleep_time = 80;
 var draw_sleep_time = 50;
-var robot_sleep_time = 30;
+var robot_sleep_time = 40;
 
 var finish_move_distance = 5;
 
 var robot_length = 40;
 var robot_width = 18;
-var robot_step = 1;
+var robot_step = 2;
 
 // Search start position
 let start_position = new Position(50, 200, 0)
