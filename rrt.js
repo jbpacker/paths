@@ -5,10 +5,6 @@
 /* Github : github.com/jbpacker/paths
 /* ----------------------------------------------- */
 
-function sleep(milliseconds) {  
-    return new Promise(resolve => setTimeout(resolve, milliseconds));  
-}  
-
 // Where curvature is 1/R (R is radius of turn) and dist is the arc length traveled.
 function stepCurv(p, curvature, dist) {
     var dx_local = dist;
@@ -147,11 +143,11 @@ class Node {
         for (const b in this.children) {
             this.children[b].draw()
         }
-        ctx.fillRect(
-            this.position.x - 2,
-            this.position.y - 2,
-            4,
-            4);
+        // ctx.fillRect(
+        //     this.position.x - 2,
+        //     this.position.y - 2,
+        //     4,
+        //     4);
     }
 
     getParent(up) {
@@ -219,14 +215,8 @@ class Tree {
             }
 
             // Cleanup
-            var super_parent = this.closest_node.getParent(draw_depth)
-            if (super_parent) {
-                this.root = super_parent;
-                this.prune(this.root)
-                if (this.root.parent) {
-                    this.root.parent = null;
-                }
-            }
+            // var super_parent = this.closest_node.getParent(draw_depth)
+            // chopTrunk(super_parent);
 
             await sleepNow(search_sleep_time);
 
@@ -235,6 +225,14 @@ class Tree {
                 this.node_queue.push(this.root)
                 this.closest_node = this.root
             }
+        }
+    }
+
+    chopTrunk(trunk_node) {
+        if (trunk_node.parent) {
+            this.root = trunk_node.parent;
+            this.prune(this.root);
+            this.root.parent = null;
         }
     }
 
@@ -258,8 +256,8 @@ class Tree {
     }
 
     draw() {
-        this.closest_node.drawFromChild()
         this.root.draw()
+        this.closest_node.drawFromChild()
     }
 }
 
@@ -275,36 +273,43 @@ class Robot {
     constructPath() {
         var node = this.tree.closest_node;
         this.path = [];
-        while (node) {
+        while (node != this.target_node) {
             this.path.push(node);
-            node = node.parent;
+            if (node.parent) {
+                node = node.parent;
+            } else {
+                break;
+            }
         }
     }
 
     async move() {
         while (this.moving) {
+            this.constructPath();
+
             // Bump up the node once the current one is complete
-            if (this.finishedMoving() && this.path.length > 0) {
+            if (this.atTargetNode() && this.path.length > 0) {
                 this.target_node = this.path.pop()
-                this.tree.root = this.target_node
+                this.tree.prune(this.target_node)
+                this.tree.chopTrunk(this.target_node)
+                // this.tree.root = this.target_node
             }
 
             var dist = robot_step;
-            if (this.finishedMoving()) {
+            if (this.atTargetNode() && this.path.length == 0) {
                 this.moving = false;
                 dist = 0.0;
+                return;
             }
 
             var curv = curvToPoint(this.position, this.target_node.position);
             this.position = stepCurv(this.position, curv, robot_step);
 
-            this.constructPath();
-
             await sleepNow(robot_sleep_time);
         }
     }
 
-    finishedMoving() {
+    atTargetNode() {
         return distance(this.target_node.position, this.position) < finish_move_distance;
     }
 
@@ -320,22 +325,16 @@ class Robot {
     }
 
     draw() {
-        for (let i = 0; i < this.path.length; i++) {
-            if (this.path[i].branch) {
-                this.path[i].branch.singleDraw()
-            }
-        }
+        // Robot Path
+        // for (let i = 0; i < this.path.length; i++) {
+        //     if (!this.path[i]) {
+        //         break;
+        //     }
 
-        // ctx.strokeStyle = 'purple';
-        // ctx.lineWidth = 1;
-
-        // ctx.beginPath();
-        // ctx.moveTo(this.position.x, this.position.y)
-        // ctx.lineTo(
-        //     this.position.x + 15 * Math.cos(this.position.yaw),
-        //     this.position.y + 15 * Math.sin(this.position.yaw)
-        // );
-        // ctx.stroke()
+        //     if (this.path[i].branch && this.path[i].parent) {
+        //         this.path[i].branch.singleDraw()
+        //     }
+        // }
 
         // Terrible js system for making rotated boxes
         ctx.translate(this.position.x, this.position.y);
@@ -349,11 +348,11 @@ class Robot {
         ctx.translate(-this.position.x, -this.position.y);
 
         // Dot on target
-        ctx.fillRect(
-            this.target_node.position.x - 5,
-            this.target_node.position.y - 5,
-            10,
-            10);
+        // ctx.fillRect(
+        //     this.target_node.position.x - 5,
+        //     this.target_node.position.y - 5,
+        //     10,
+        //     10);
 
     }
 }
@@ -379,9 +378,9 @@ var draw_depth = 30;
 // Break time between cycles [ms]
 var search_sleep_time = 40;
 var draw_sleep_time = 50;
-var robot_sleep_time = 50;
+var robot_sleep_time = 30;
 
-var finish_move_distance = 20;
+var finish_move_distance = 5;
 
 var robot_length = 40;
 var robot_width = 18;
@@ -394,15 +393,23 @@ let tree = new Tree(start_position);
 let robot = new Robot(start_position, tree)
 var canvas, ctx;
 
+
+
+
 function init() {
     canvas = document.getElementById('can');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvas();
     ctx = canvas.getContext("2d");
 
     canvas.addEventListener("mousemove", function (e) {
         updatePosition(e)
     }, false);
+    canvas.addEventListener("resize", resizeCanvas, false);
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
 
     draw();
 }
