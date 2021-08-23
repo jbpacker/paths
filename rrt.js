@@ -393,8 +393,10 @@ let tree = new Tree(start_position);
 let robot = new Robot(start_position, tree)
 var canvas, ctx;
 
-
-
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
 
 function init() {
     canvas = document.getElementById('can');
@@ -404,12 +406,7 @@ function init() {
     canvas.addEventListener("mousemove", function (e) {
         updatePosition(e)
     }, false);
-    canvas.addEventListener("resize", resizeCanvas, false);
-
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
+    window.addEventListener("resize", resizeCanvas, false);
 
     draw();
 }
