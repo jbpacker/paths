@@ -237,27 +237,39 @@ class Tree {
     }
 }
 
+// OLD params with more searching!
+// var curvature_sample = 0.1;
+// var distance_sample = 10;
+// var distance_sample_offset = 5;
+// var explore_distance = 15;
+// var finish_distance = 30;
+// var draw_sleep_time = 10;
+// var draw_depth = 100;
+// var search_sleep_time = 1;
+
+// Search Parameters
+
 // Curvature sample = [+/-]rand[0-1] * curvature_sample
-var curvature_sample = 0.1;
+var curvature_sample = 0.02;
 
 // Sample distance = rand[0-1] * distance_sample + distance_sample_offset
-var distance_sample = 10;
-var distance_sample_offset = 5;
+var distance_sample = 40;
+var distance_sample_offset = 45;
 
 // Will continue expanding node if within this distance from target of closest node
-var explore_distance = 15;
+var explore_distance = 75;
 
 // Stops searching when within this distance of target
-var finish_distance = 30;
+var finish_distance = 40;
 
 // Draws this frequently [ms]
-var draw_sleep_time = 10;
+var draw_sleep_time = 50;
 
 // Draws this many nodes up from node that's closest to target
-var draw_depth = 100;
+var draw_depth = 30;
 
 // Break time between search cycles
-var search_sleep_time = 1;
+var search_sleep_time = 20;
 
 // Search start position
 let start_position = new Position(50, 200, 0)
