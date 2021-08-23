@@ -31,6 +31,20 @@ function stepCurv(p, curvature, dist) {
     return new_p;
 }
 
+function curvToPoint(p, target) {
+    var s = Math.sin(p.yaw);
+    var c = Math.cos(p.yaw);
+
+    var dx_global = (target.x - p.x);
+    var dy_global = (target.y - p.y);
+
+    var dx = dx_global * c + dy_global * s;
+    var dy = -dx_global * s + dy_global * c;
+
+    var curv = (2 * dy) / (dx * dx + dy * dy);
+    return curv;
+}
+
 function stepRad(p, angle, dist) {
     var dx = dist * Math.sin(angle);
     var dy = dist * Math.cos(angle);
@@ -66,7 +80,7 @@ class Branch {
 
     singleDraw() {
         ctx.strokeStyle = 'green';
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 2;
 
         ctx.beginPath();
 
@@ -121,17 +135,6 @@ class Node {
     }
 
     drawFromChild() {
-        // ctx.strokeStyle = 'green';
-        // ctx.lineWidth = 1;
-
-        // ctx.beginPath();
-        // ctx.moveTo(this.position.x, this.position.y)
-        // ctx.lineTo(
-        //     this.position.x + 8 * Math.cos(this.position.yaw), 
-        //     this.position.y + 8 * Math.sin(this.position.yaw)
-        // );
-        // ctx.stroke()
-        // ctx.fillRect(this.position.x, this.position.y, 5, 5);
         if (this.branch) {
             this.branch.singleDraw()
         }
@@ -144,6 +147,11 @@ class Node {
         for (const b in this.children) {
             this.children[b].draw()
         }
+        ctx.fillRect(
+            this.position.x - 2,
+            this.position.y - 2,
+            4,
+            4);
     }
 
     getParent(up) {
@@ -184,8 +192,6 @@ class Tree {
             var dist_to_closest_node = this.closest_node.distanceTo(this.target)
             var dist_to_child = branch.child.distanceTo(this.target)
 
-            // console.log("closest dist: " + dist_to_closest_node + " child dist: " + dist_to_child + " explore_distance: " + ((dist_to_closest_node * 1.02) - dist_to_closest_node))
-
             if (dist_to_child < dist_to_closest_node) {
                 this.closest_node = branch.child
                 this.node_queue.push(branch.child)
@@ -220,7 +226,6 @@ class Tree {
         }
     }
 
-
     async update(target) {
         this.target = target
         if (this.running == false) {
@@ -229,25 +234,107 @@ class Tree {
     }
 
     draw() {
-        if (this.running) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            this.closest_node.drawFromChild()
-            this.root.draw()
-        }
+        this.closest_node.drawFromChild()
+        this.root.draw()
     }
 }
 
-// OLD params with more searching!
-// var curvature_sample = 0.1;
-// var distance_sample = 10;
-// var distance_sample_offset = 5;
-// var explore_distance = 15;
-// var finish_distance = 30;
-// var draw_sleep_time = 10;
-// var draw_depth = 100;
-// var search_sleep_time = 1;
+class Robot {
+    constructor(start, tree) {
+        this.position = start;
+        this.tree = tree;
+        this.target_node = this.tree.root;
+        this.moving = false;
+        this.path = [];
+    }
 
-// Search Parameters
+    constructPath() {
+        var node = this.tree.closest_node;
+        this.path = [];
+        while (node) {
+            this.path.push(node);
+            node = node.parent;
+        }
+    }
+
+    async move() {
+        while (this.moving) {
+            // Bump up the node once the current one is complete
+            if (this.finishedMoving() && this.path.length > 0) {
+                this.target_node = this.path.pop()
+                this.tree.root = this.target_node
+            }
+
+            var dist = robot_step;
+            if (this.finishedMoving()) {
+                this.moving = false;
+                dist = 0.0;
+            }
+
+            var curv = curvToPoint(this.position, this.target_node.position);
+            this.position = stepCurv(this.position, curv, robot_step);
+
+            this.constructPath();
+
+            await sleepNow(robot_sleep_time);
+        }
+    }
+
+    finishedMoving() {
+        return distance(this.target_node.position, this.position) < finish_move_distance;
+    }
+
+    needToMove() {
+        return this.tree.closest_node != this.target_node;
+    }
+
+    update() {
+        if (!this.moving && this.tree.running && this.needToMove()) {
+            this.moving = true;
+            this.move();
+        }
+    }
+
+    draw() {
+        for (let i = 0; i < this.path.length; i++) {
+            if (this.path[i].branch) {
+                this.path[i].branch.singleDraw()
+            }
+        }
+
+        // ctx.strokeStyle = 'purple';
+        // ctx.lineWidth = 1;
+
+        // ctx.beginPath();
+        // ctx.moveTo(this.position.x, this.position.y)
+        // ctx.lineTo(
+        //     this.position.x + 15 * Math.cos(this.position.yaw),
+        //     this.position.y + 15 * Math.sin(this.position.yaw)
+        // );
+        // ctx.stroke()
+
+        // Terrible js system for making rotated boxes
+        ctx.translate(this.position.x, this.position.y);
+        ctx.rotate(this.position.yaw);
+        ctx.fillRect(
+            -robot_length * 0.5,
+            -robot_width * 0.5,
+            robot_length,
+            robot_width);
+        ctx.rotate(-this.position.yaw);
+        ctx.translate(-this.position.x, -this.position.y);
+
+        // Dot on target
+        ctx.fillRect(
+            this.target_node.position.x - 5,
+            this.target_node.position.y - 5,
+            10,
+            10);
+
+    }
+}
+
+// Search + Motion Parameters
 
 // Curvature sample = [+/-]rand[0-1] * curvature_sample
 var curvature_sample = 0.02;
@@ -262,19 +349,25 @@ var explore_distance = 75;
 // Stops searching when within this distance of target
 var finish_distance = 40;
 
-// Draws this frequently [ms]
-var draw_sleep_time = 50;
-
 // Draws this many nodes up from node that's closest to target
 var draw_depth = 30;
 
-// Break time between search cycles
-var search_sleep_time = 20;
+// Break time between cycles [ms]
+var search_sleep_time = 40;
+var draw_sleep_time = 50;
+var robot_sleep_time = 30;
+
+var finish_move_distance = 20;
+
+var robot_length = 40;
+var robot_width = 18;
+var robot_step = 2;
 
 // Search start position
 let start_position = new Position(50, 200, 0)
 
 let tree = new Tree(start_position);
+let robot = new Robot(start_position, tree)
 var canvas, ctx;
 
 function init() {
@@ -291,7 +384,11 @@ function init() {
 }
 
 async function draw() {
-    tree.draw();
+    if (robot.moving || tree.running) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        tree.draw();
+        robot.draw();
+    }
     await sleepNow(draw_sleep_time)
     requestAnimationFrame(draw);
 }
@@ -299,4 +396,5 @@ async function draw() {
 function updatePosition(e) {
     let target = new Position(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop)
     tree.update(target)
+    robot.update()
 }
