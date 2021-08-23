@@ -169,6 +169,16 @@ class Node {
     distanceTo(target) {
         return distance(this.position, target)
     }
+
+    containsParent(target_node, up) {
+        if (this == target_node) {
+            return true;
+        }
+        if (up == 0 || this.parent == null) {
+            return false;
+        }
+        return this.parent.containsParent(target_node, up - 1);
+    }
 }
 
 const sleepNow = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
@@ -212,6 +222,7 @@ class Tree {
             var super_parent = this.closest_node.getParent(draw_depth)
             if (super_parent) {
                 this.root = super_parent;
+                this.prune(this.root)
                 if (this.root.parent) {
                     this.root.parent = null;
                 }
@@ -222,8 +233,21 @@ class Tree {
             // Add root back in just in case the queue goes empty
             if (this.node_queue.length == 0) {
                 this.node_queue.push(this.root)
+                this.closest_node = this.root
             }
         }
+    }
+
+    // Checks that "root" node is within "up" distance of all nodes in node_queue
+    prune(target_node) {
+        let new_node_queue = [];
+        while (this.node_queue.length > 0) {
+            var node = this.node_queue.shift()
+            if (node.containsParent(target_node, draw_depth)) {
+                new_node_queue.push(node)
+            }
+        }
+        this.node_queue = [...new_node_queue];
     }
 
     async update(target) {
@@ -355,13 +379,13 @@ var draw_depth = 30;
 // Break time between cycles [ms]
 var search_sleep_time = 40;
 var draw_sleep_time = 50;
-var robot_sleep_time = 30;
+var robot_sleep_time = 50;
 
 var finish_move_distance = 20;
 
 var robot_length = 40;
 var robot_width = 18;
-var robot_step = 2;
+var robot_step = 1;
 
 // Search start position
 let start_position = new Position(50, 200, 0)
