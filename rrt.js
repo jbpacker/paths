@@ -75,7 +75,7 @@ class Branch {
     }
 
     singleDraw() {
-        ctx.strokeStyle = 'green';
+        ctx.strokeStyle = 'white';
         ctx.lineWidth = 2;
 
         ctx.beginPath();
@@ -93,7 +93,7 @@ class Branch {
         ctx.stroke();        }
 
     draw() {
-        ctx.strokeStyle = 'red';
+        ctx.strokeStyle = 'gray';
         ctx.lineWidth = 1;
 
         ctx.beginPath();
@@ -336,15 +336,11 @@ class Robot {
         //     }
         // }
 
-        // Terrible js system for making rotated boxes
+        // Terrible js system for rotating things
         ctx.translate(this.position.x, this.position.y);
-        ctx.rotate(this.position.yaw);
-        ctx.fillRect(
-            -robot_length * 0.5,
-            -robot_width * 0.5,
-            robot_length,
-            robot_width);
-        ctx.rotate(-this.position.yaw);
+        ctx.rotate(this.position.yaw + (0.25*Math.PI));
+        ctx.drawImage(rocket, -rocket_length*0.5, -rocket_length*0.5, rocket_length, rocket_length)
+        ctx.rotate(-(this.position.yaw + (0.25*Math.PI)));
         ctx.translate(-this.position.x, -this.position.y);
 
         // Dot on target
@@ -385,6 +381,10 @@ var finish_move_distance = 5;
 var robot_length = 40;
 var robot_width = 18;
 var robot_step = 2;
+var rocket_length = 40;
+
+let rocket = new Image();
+rocket.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612472e781d6bd721466ce5d_rocket.svg';
 
 // Search start position
 let start_position = new Position(50, 200, 0)
@@ -399,7 +399,7 @@ function resizeCanvas() {
 }
 
 function init() {
-    canvas = document.getElementById('can');
+    canvas = document.getElementById('rrt');
     resizeCanvas();
     ctx = canvas.getContext("2d");
 
