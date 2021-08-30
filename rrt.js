@@ -180,12 +180,13 @@ class Node {
 const sleepNow = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 
 class Tree {
-    constructor(start) {
+    constructor(start, target) {
         this.root = new Node(null, null, start)
         this.node_queue = []
         this.node_queue.push(this.root)
         this.running = false
         this.closest_node = this.root
+        this.target = target
     }
 
     async rollout() {
@@ -195,8 +196,8 @@ class Tree {
             let node = this.node_queue.shift();
             var branch = node.sample();
 
-            var dist_to_closest_node = this.closest_node.distanceTo(this.target)
-            var dist_to_child = branch.child.distanceTo(this.target)
+            var dist_to_closest_node = this.closest_node.distanceTo(this.target.position)
+            var dist_to_child = branch.child.distanceTo(this.target.position)
 
             if (dist_to_child < dist_to_closest_node) {
                 this.closest_node = branch.child
@@ -205,11 +206,11 @@ class Tree {
                 this.node_queue.push(branch.child)
             }
 
-            if (node.distanceTo(this.target) < dist_to_closest_node + explore_distance) {
+            if (node.distanceTo(this.target.position) < dist_to_closest_node + explore_distance) {
                 this.node_queue.push(node)
             }
 
-            if (dist_to_child < finish_distance) {
+            if (dist_to_child < finish_distance && !this.target.circle) {
                 this.running = false
                 return;
             }
@@ -248,8 +249,7 @@ class Tree {
         this.node_queue = [...new_node_queue];
     }
 
-    async update(target) {
-        this.target = target
+    async update() {
         if (this.running == false) {
             this.rollout()
         }
@@ -297,13 +297,18 @@ class Robot {
 
             var dist = robot_step;
             if (this.atTargetNode() && this.path.length == 0) {
-                this.moving = false;
+                // set dist to 0, so robot doesn't move forward.
                 dist = 0.0;
-                return;
+                // In circle mode we want to continue running.
+                if (!this.tree.target.circle) {
+                    this.moving = false;
+                    return;
+                }
             }
 
+            // Find curvature to the next node and step the robot forward.
             var curv = curvToPoint(this.position, this.target_node.position);
-            this.position = stepCurv(this.position, curv, robot_step);
+            this.position = stepCurv(this.position, curv, dist);
 
             await sleepNow(robot_sleep_time);
         }
@@ -343,7 +348,7 @@ class Robot {
         ctx.rotate(-(this.position.yaw + (0.25*Math.PI)));
         ctx.translate(-this.position.x, -this.position.y);
 
-        // Dot on target
+        // Dot on target node
         // ctx.fillRect(
         //     this.target_node.position.x - 5,
         //     this.target_node.position.y - 5,
@@ -353,7 +358,55 @@ class Robot {
     }
 }
 
+class Target {
+    constructor() {
+        this.position = new Position(0.0, 0.0, 0.0);
+        this.circle = true;
+        this.theta = planet_start_theta;
+        this.phi = 0.0;
+    }
+
+    clickUpdate(position) {
+        this.position = position
+        this.circle = false
+    }
+
+    async update() {
+        while (this.circle) {
+            // 360 steps per circle
+            this.theta = this.theta + planet_step_size;
+            this.position.x = 0.5 * canvas.width + 0.5 * planet_percent_circle * canvas.width * Math.sin(this.theta);
+            this.position.y = 0.5 * canvas.height + 0.5 * planet_percent_circle * canvas.height * Math.cos(this.theta);
+            await sleepNow(robot_sleep_time);
+        }
+    }
+
+    draw() {
+        // Terrible js system for rotating things
+        this.phi = this.phi + planet_spin_step
+        ctx.translate(this.position.x, this.position.y);
+        ctx.rotate(this.phi);
+        ctx.drawImage(
+            planet, 
+            -planet_length*0.5, 
+            -planet_length*0.5, 
+            planet_length, 
+            planet_length)
+        ctx.rotate(-this.phi);
+        ctx.translate(-this.position.x, -this.position.y);
+    }
+}
+
 // Search + Motion Parameters
+
+// planet circle percent of screen
+var planet_percent_circle = 0.6;
+
+// planet rad per step
+var planet_step_size = Math.PI / 500;
+var planet_spin_step = Math.PI / 500;
+
+var planet_start_theta = 1/8 * Math.PI;
 
 // Curvature sample = [+/-]rand[0-1] * curvature_sample
 var curvature_sample = 0.02;
@@ -383,14 +436,23 @@ var robot_width = 18;
 var robot_step = 2;
 var rocket_length = 40;
 
+var planet_length = 40;
+
 let rocket = new Image();
 rocket.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612472e781d6bd721466ce5d_rocket.svg';
 
-// Search start position
-let start_position = new Position(50, 200, 0)
+let planet = new Image();
+planet.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612c501335b1fd3fcf3657d8_planet.png'
 
-let tree = new Tree(start_position);
-let robot = new Robot(start_position, tree)
+// Search start position
+let start_position = new Position(
+    0.5 * window.innerWidth,
+    window.innerHeight - rocket_length,
+    3/2 * Math.PI);
+
+let target = new Target();
+let tree = new Tree(start_position, target);
+let robot = new Robot(start_position, tree);
 var canvas, ctx;
 
 function resizeCanvas() {
@@ -403,17 +465,23 @@ function init() {
     resizeCanvas();
     ctx = canvas.getContext("2d");
 
-    canvas.addEventListener("mousemove", function (e) {
+    canvas.addEventListener("click", function (e) {
         updatePosition(e)
     }, false);
     window.addEventListener("resize", resizeCanvas, false);
 
     draw();
+
+    target.update();
+    tree.update();
+    robot.update();
 }
 
 async function draw() {
-    if (robot.moving || tree.running) {
+    if (true) {
+    // if (robot.moving || tree.running) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        target.draw();
         tree.draw();
         robot.draw();
     }
@@ -422,7 +490,8 @@ async function draw() {
 }
 
 function updatePosition(e) {
-    let target = new Position(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop)
-    tree.update(target)
+    let target_position = new Position(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+    target.clickUpdate(target_position)
+    tree.update()
     robot.update()
 }
