@@ -319,7 +319,7 @@ class Robot {
     }
 
     needToMove() {
-        return this.tree.closest_node != this.target_node;
+        return (this.tree.closest_node != this.target_node) || this.tree.target.circle;
     }
 
     update() {
@@ -360,9 +360,10 @@ class Robot {
 
 class Target {
     constructor() {
-        this.position = new Position(0.0, 0.0, 0.0);
         this.circle = true;
         this.theta = planet_start_theta;
+        this.position = new Position(0.0, 0.0, 0.0);
+        this.updatePosition(this.theta)
         this.phi = 0.0;
     }
 
@@ -373,12 +374,17 @@ class Target {
 
     async update() {
         while (this.circle) {
-            // 360 steps per circle
-            this.theta = this.theta + planet_step_size;
-            this.position.x = 0.5 * canvas.width + 0.5 * planet_percent_circle * canvas.width * Math.sin(this.theta);
-            this.position.y = 0.5 * canvas.height + 0.5 * planet_percent_circle * canvas.height * Math.cos(this.theta);
-            await sleepNow(robot_sleep_time);
+            // arclength = R*theta
+            var r = 0.25 * planet_percent_circle * (window.innerWidth + window.innerHeight);
+            this.theta = this.theta + planet_step_size / r;
+            this.updatePosition(this.theta)
+            await sleepNow(target_sleep_time);
         }
+    }
+
+    updatePosition(theta) {
+        this.position.x = 0.5 * window.innerWidth * (1 + planet_percent_circle * Math.sin(theta));
+        this.position.y = 0.5 * window.innerHeight * (1 + planet_percent_circle * Math.cos(theta));
     }
 
     draw() {
@@ -402,18 +408,21 @@ class Target {
 // planet circle percent of screen
 var planet_percent_circle = 0.6;
 
-// planet rad per step
-var planet_step_size = Math.PI / 500;
+// planet step size, same units as robot step size
+var planet_step_size = 1.5;
+
+// How quickly the planet spins, in rad/tick
 var planet_spin_step = Math.PI / 500;
 
+// Where the planet starts wrt angle about center.
 var planet_start_theta = 1/8 * Math.PI;
 
 // Curvature sample = [+/-]rand[0-1] * curvature_sample
-var curvature_sample = 0.02;
+var curvature_sample = 0.035;
 
 // Sample distance = rand[0-1] * distance_sample + distance_sample_offset
-var distance_sample = 40;
-var distance_sample_offset = 45;
+var distance_sample = 60;
+var distance_sample_offset = 25;
 
 // Will continue expanding node if within this distance from target of closest node
 var explore_distance = 75;
@@ -428,6 +437,7 @@ var draw_depth = 30;
 var search_sleep_time = 80;
 var draw_sleep_time = 50;
 var robot_sleep_time = 40;
+var target_sleep_time = 40;
 
 var finish_move_distance = 5;
 
@@ -447,7 +457,7 @@ planet.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612c50133
 // Search start position
 let start_position = new Position(
     0.5 * window.innerWidth,
-    window.innerHeight - rocket_length,
+    window.innerHeight - rocket_length * 2,
     3/2 * Math.PI);
 
 let target = new Target();
