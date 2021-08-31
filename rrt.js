@@ -471,7 +471,7 @@ function resizeCanvas() {
 }
 
 function init() {
-    canvas = document.getElementById('rrt');
+    canvas = document.createElement('canvas')
     resizeCanvas();
     ctx = canvas.getContext("2d");
 
@@ -485,6 +485,9 @@ function init() {
     target.update();
     tree.update();
     robot.update();
+
+    div = document.getElementById('rrt');
+    div.appendChild(canvas)
 }
 
 async function draw() {
