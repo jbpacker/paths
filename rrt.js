@@ -27,6 +27,7 @@ function stepCurv(p, curvature, dist) {
     return new_p;
 }
 
+// Find the curvature to make it from the point p to the target.
 function curvToPoint(p, target) {
     var s = Math.sin(p.yaw);
     var c = Math.cos(p.yaw);
@@ -41,6 +42,7 @@ function curvToPoint(p, target) {
     return curv;
 }
 
+// Integrate along constant curvature angle
 function stepRad(p, angle, dist) {
     var dx = dist * Math.sin(angle);
     var dy = dist * Math.cos(angle);
@@ -48,6 +50,7 @@ function stepRad(p, angle, dist) {
     return new_p;
 }
 
+// Euclidean distance
 function distance(p, target) {
     var dx = target.x - p.x;
     var dy = target.y - p.y;
@@ -63,6 +66,7 @@ class Position {
     }
 }
 
+// Search tree branch is connects two nodes and holds the traveled path between them.
 class Branch {
     constructor(parent, curvature, distance) {
         this.parent = parent;
@@ -113,6 +117,7 @@ class Branch {
     }
 }
 
+// Search tree node. Holds information about children (next) nodes, and parent (prev) node.
 class Node {
     constructor(parent, branch, position) {
         this.parent = parent;
@@ -143,6 +148,7 @@ class Node {
         for (const b in this.children) {
             this.children[b].draw()
         }
+        // Debug Rectangle
         // ctx.fillRect(
         //     this.position.x - 2,
         //     this.position.y - 2,
@@ -179,6 +185,9 @@ class Node {
 
 const sleepNow = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 
+// Holds information about all possible paths that can be taken. 
+// Searches by attaching new nodes to children based on distance to 
+// target heuristic. New nodes randomly sample curvature and distance from parent.
 class Tree {
     constructor(start, target) {
         this.root = new Node(null, null, start)
@@ -214,10 +223,6 @@ class Tree {
                 this.running = false
                 return;
             }
-
-            // Cleanup
-            // var super_parent = this.closest_node.getParent(draw_depth)
-            // chopTrunk(super_parent);
 
             await sleepNow(search_sleep_time);
 
@@ -261,6 +266,7 @@ class Tree {
     }
 }
 
+// The robot that follows the tree. Shown as rocket on web page.
 class Robot {
     constructor(start, tree) {
         this.position = start;
@@ -292,7 +298,6 @@ class Robot {
                 this.target_node = this.path.pop()
                 this.tree.prune(this.target_node)
                 this.tree.chopTrunk(this.target_node)
-                // this.tree.root = this.target_node
             }
 
             var dist = robot_step;
@@ -330,7 +335,7 @@ class Robot {
     }
 
     draw() {
-        // Robot Path
+        // Debug: Draw Robot Path
         // for (let i = 0; i < this.path.length; i++) {
         //     if (!this.path[i]) {
         //         break;
@@ -348,7 +353,7 @@ class Robot {
         ctx.rotate(-(this.position.yaw + (0.25*Math.PI)));
         ctx.translate(-this.position.x, -this.position.y);
 
-        // Dot on target node
+        // Debug: Draw dot on target node
         // ctx.fillRect(
         //     this.target_node.position.x - 5,
         //     this.target_node.position.y - 5,
@@ -358,6 +363,7 @@ class Robot {
     }
 }
 
+// Target that the tree tries to make it to. Shows up as planet on webpage.
 class Target {
     constructor() {
         this.circle = true;
@@ -448,6 +454,7 @@ var rocket_length = 40;
 
 var planet_length = 40;
 
+// Note: These urls come from jefpacker.ai webflow.
 let rocket = new Image();
 rocket.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612472e781d6bd721466ce5d_rocket.svg';
 
