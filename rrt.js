@@ -461,20 +461,26 @@ rocket.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612472e78
 let planet = new Image();
 planet.src = 'https://uploads-ssl.webflow.com/612292ecc8ee4caae75526b9/612c501335b1fd3fcf3657d8_planet.png'
 
+let target = new Target();
+
+robot_start_x = 0.5 * window.innerWidth;
+robot_start_y = window.innerHeight - rocket_length * 2;
+
 // Search start position
 let start_position = new Position(
-    0.5 * window.innerWidth,
-    window.innerHeight - rocket_length * 2,
-    3/2 * Math.PI);
+    robot_start_x,
+    robot_start_y,
+    // Aim the robot toward the planet
+    Math.atan2(target.position.y - robot_start_y, target.position.x - robot_start_x));
 
-let target = new Target();
 let tree = new Tree(start_position, target);
 let robot = new Robot(start_position, tree);
 var canvas, ctx;
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.height = window.outerHeight;
+    document.body.style.overflow = "hidden"
 }
 
 function init() {
